@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>材料涨价雷达</title>
+  <style>{{STYLES}}</style>
+</head>
+<body>
+  <main class="page-shell">
+    <header class="hero" aria-labelledby="report-title">
+      <h1 id="report-title"></h1>
+      <div class="hero-meta" id="hero-meta"></div>
+      <p class="hero-note">抓取监控窗口内多来源反复提到的供给紧张、成本上涨与提价预期，按消息密度、来源质量、价格验证、供给约束和 A 股异动评分。</p>
+    </header>
+
+    <section class="overview" aria-labelledby="overview-title">
+      <h2 id="overview-title"><span class="section-index">0</span> 发酵雷达总览（按评分排序）</h2>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>材料链</th>
+              <th>分类</th>
+              <th>发酵分</th>
+              <th>状态</th>
+              <th>核心催化</th>
+            </tr>
+          </thead>
+          <tbody id="radar-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="appendix" aria-labelledby="appendix-title">
+      <h2 id="appendix-title"><span class="section-index">1</span> 证据附录</h2>
+      <div id="detail-list"></div>
+    </section>
+  </main>
+
+  <script type="application/json" id="radar-data">{{DATA_JSON}}</script>
+  <script>
+    (() => {
+      const data = JSON.parse(document.getElementById('radar-data').textContent);
+      const title = data.title || '材料涨价雷达';
+      document.title = title;
+      document.getElementById('report-title').textContent = title;
+
+      const meta = document.getElementById('hero-meta');
+      [data.as_of, '可视化网站版', `监控窗口：近${data.window_days}天`, `覆盖 ${data.candidate_count} 条材料链`]
+        .forEach(value => {
+          const pill = document.createElement('span');
+          pill.className = 'meta-pill';
+          pill.textContent = value;
+          meta.appendChild(pill);
+        });
+
+      const safeUrl = value => {
+        try {
+          const url = new URL(value);
+          return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+        } catch (_) {
+          return '';
+        }
+      };
+      const valueOrDash = value => value === undefined || value === null || value === '' ? '—' : String(value);
+      const statusClass = status => ({
+        '高确定性': 'status-high',
+        '发酵中': 'status-fermenting',
+        '观察': 'status-watch',
+        '证据不足': 'status-low'
+      }[status] || 'status-low');
+
+      const rows = document.getElementById('radar-rows');
+      data.candidates.forEach(item => {
+        const row = document.createElement('tr');
+        const cells = [
+          ['材料链', item.material_chain, 'material'],
+          ['分类', item.category, 'category'],
+          ['发酵分', null, 'score'],
+          ['状态', null, 'status'],
+          ['核心催化', item.core_catalyst, 'catalyst']
+        ];
+        cells.forEach(([label, value, col]) => {
+          const cell = document.createElement('td');
+          cell.dataset.label = label;
+          cell.dataset.col = col;
+          if (col === 'score') {
+            const wrap = document.createElement('div');
+            wrap.className = 'score-wrap';
+            const track = document.createElement('span');
+            track.className = 'score-track';
+            const fill = document.createElement('span');
+            fill.className = 'score-fill';
+            fill.style.width = `${Math.max(0, Math.min(100, Number(item.total_score) || 0))}%`;
+            track.appendChild(fill);
+            const number = document.createElement('strong');
+            number.textContent = valueOrDash(item.total_score);
+            wrap.append(track, number);
+            cell.appendChild(wrap);
+          } else if (col === 'status') {
+            const badge = document.createElement('span');
+            badge.className = `status-badge ${statusClass(item.status)}`;
+            badge.textContent = valueOrDash(item.status);
+            cell.appendChild(badge);
+          } else {
+            cell.textContent = valueOrDash(value);
+          }
+          row.appendChild(cell);
+        });
+        rows.appendChild(row);
+      });
+
+      const scoreNames = {
+        message_density: '消息密度',
+        source_quality: '来源质量',
+        price_validation: '价格验证',
+        supply_constraint: '供给约束',
+        a_share_movement: 'A股异动'
+      };
+      const scoreMax = {message_density: 20, source_quality: 25, price_validation: 25, supply_constraint: 20, a_share_movement: 10};
+      const details = document.getElementById('detail-list');
+
+      data.candidates.forEach((item, index) => {
+        const panel = document.createElement('details');
+        panel.className = 'detail-card';
+        const summary = document.createElement('summary');
+        const left = document.createElement('span');
+        left.textContent = `${index + 1}. ${valueOrDash(item.material_chain)}`;
+        const right = document.createElement('span');
+        right.className = `status-badge ${statusClass(item.status)}`;
+        right.textContent = `${item.total_score} · ${item.status}`;
+        summary.append(left, right);
+        panel.appendChild(summary);
+
+        const body = document.createElement('div');
+        body.className = 'detail-body';
+        const scoreGrid = document.createElement('div');
+        scoreGrid.className = 'score-grid';
+        Object.entries(scoreNames).forEach(([key, label]) => {
+          const box = document.createElement('div');
+          box.className = 'mini-score';
+          const name = document.createElement('span');
+          name.textContent = label;
+          const amount = document.createElement('strong');
+          amount.textContent = `${item.scores[key]}/${scoreMax[key]}`;
+          box.append(name, amount);
+          scoreGrid.appendChild(box);
+        });
+        body.appendChild(scoreGrid);
+
+        const facts = document.createElement('div');
+        facts.className = 'fact-grid';
+        [
+          ['核心催化', item.core_catalyst],
+          ['价格验证', item.price && item.price.description],
+          ['供给约束', item.supply && item.supply.description],
+          ['A股验证', item.a_share && item.a_share.description]
+        ].forEach(([label, value]) => {
+          const block = document.createElement('div');
+          const heading = document.createElement('h3');
+          heading.textContent = label;
+          const paragraph = document.createElement('p');
+          paragraph.textContent = valueOrDash(value);
+          block.append(heading, paragraph);
+          facts.appendChild(block);
+        });
+        body.appendChild(facts);
+
+        const evidenceTitle = document.createElement('h3');
+        evidenceTitle.textContent = '关键证据';
+        body.appendChild(evidenceTitle);
+        const evidenceList = document.createElement('ul');
+        evidenceList.className = 'evidence-list';
+        (item.evidence || []).forEach(row => {
+          const li = document.createElement('li');
+          const tier = document.createElement('span');
+          tier.className = 'tier-badge';
+          tier.textContent = valueOrDash(row.tier);
+          const text = document.createElement('span');
+          text.textContent = `${valueOrDash(row.date)} · ${valueOrDash(row.publisher)} — ${valueOrDash(row.claim)}`;
+          li.append(tier, text);
+          const href = safeUrl(row.url);
+          if (href) {
+            const link = document.createElement('a');
+            link.href = href;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = '来源';
+            li.appendChild(link);
+          }
+          evidenceList.appendChild(li);
+        });
+        if (!evidenceList.children.length) {
+          const li = document.createElement('li');
+          li.textContent = '没有可展示证据';
+          evidenceList.appendChild(li);
+        }
+        body.appendChild(evidenceList);
+
+        const notes = document.createElement('div');
+        notes.className = 'note-grid';
+        [
+          ['反证', item.counterevidence],
+          ['失效条件', item.invalidation_conditions],
+          ['数据缺口', item.data_gaps]
+        ].forEach(([label, values]) => {
+          const block = document.createElement('div');
+          const heading = document.createElement('h3');
+          heading.textContent = label;
+          const list = document.createElement('ul');
+          (Array.isArray(values) && values.length ? values : ['无']).forEach(value => {
+            const li = document.createElement('li');
+            li.textContent = valueOrDash(value);
+            list.appendChild(li);
+          });
+          block.append(heading, list);
+          notes.appendChild(block);
+        });
+        body.appendChild(notes);
+        panel.appendChild(body);
+        details.appendChild(panel);
+      });
+    })();
+  </script>
+</body>
+</html>
