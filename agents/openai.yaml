@@ -6,3 +6,7 @@ interface:
 # 如果 Skill 只希望在点名时调用
 policy:
   allow_implicit_invocation: false
+
+# 如果 Skill 希望系统自动触发
+# policy:
+#  allow_implicit_invocation: true
