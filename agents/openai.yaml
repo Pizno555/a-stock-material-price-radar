@@ -1,4 +1,8 @@
 interface:
-  display_name: "Material Price Radar"
+  display_name: "材料涨价雷达"
   short_description: "动态发现材料涨价线索，核验证据并生成100分雷达榜和证据附录"
   default_prompt: "使用 $material-price-radar 扫描近10天材料涨价信号，核验证据并输出排序总览与证据附录。"
+
+# 如果 Skill 只希望在点名时调用
+policy:
+  allow_implicit_invocation: false
