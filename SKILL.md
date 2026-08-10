@@ -1,67 +1,81 @@
 ---
 name: material-price-radar
-description: Discover, verify, score, and rank material price-hike signals with a 100-point evidence rubric and A-share mapping. Use for 材料涨价雷达, 涨价链, 原材料价格异动, 供给收缩, 调价函核验, 产业链涨价线索, A股受益材料筛选, or when the user wants a ranked Markdown, JSON, local HTML, or PNG radar covering recent commodity, chemical, metal, semiconductor, PCB, battery, energy, or advanced-material signals.
+description: Discover, verify, score, and rank material price-hike and supply-demand inflection signals with a deterministic 100-point rubric and A-share confirmation. Use for 材料涨价雷达, 涨价链, 原材料价格异动, 封盘惜售, 取消折扣, 供给收缩, 库存去化, 交期延长, 订单加速, 检修停产, 调价函核验, 产业链涨价线索, A股受益材料筛选, or ranked Markdown, JSON, local HTML, or PNG research covering commodity, chemical, metal, semiconductor, PCB, battery, energy, or advanced materials.
 ---
 
-# 材料涨价雷达
+# 材料涨价与供需拐点雷达
 
-生成可审计的材料涨价排序。默认先研究事实，再按固定规则评分；网页和图片只是可选呈现。
+发现最近窗口内已经发生的价格变化，以及已经发生但尚未完全传导到价格的高质量供需变化。先研究事实，再按固定规则评分；总分衡量涨价逻辑和供需变化强度，不代表股票买入价值。
+
+## 默认参数
+
+- 截止今天。
+- 近 10 个自然日。
+- 动态发现候选。
+- 最多输出 30 条。
+- 默认在对话中返回 Markdown。
+- 新研究使用顶层 `schema_version: "2.1"`。
 
 ## 执行流程
 
-1. 确认参数。未指定时使用截止今日、近 10 个自然日、动态发现、最多 30 条、Markdown 对话输出。
-2. 发现候选。扫描化工、金属与资源、半导体/电子材料、PCB、锂电、能源和先进材料；也接受用户指定材料或分类。
-3. 核验证据。优先使用正式公告、官方统计、交易所、行业协会、权威价格机构、可追溯企业信息和产业链交叉验证。需要当前信息时必须检索，不能依赖记忆。
-4. 去重归并。合并转载、同源稿、同一调价事件和材料别名；只把独立事件计入消息密度。
-5. 剔除伪候选。若只有股票异动、市场讨论或概念炒作，却没有材料价格或供给信号，不纳入榜单。
-6. 按 [methodology.md](references/methodology.md) 分级证据并整理为 [data-contract.md](references/data-contract.md) 的结构。为每条证据设置唯一 `evidence_id`，并由 `price`、`supply`、`a_share` 的 `evidence_refs` 明确绑定；未绑定字段不得计分。
-7. 运行 `scripts/score_radar.py` 计算分项、总分、状态、证据门槛、缺口和稳定排序。不要手算后覆盖脚本结果。
-8. 先给结论总览，再给证据附录。使用 [output-formats.md](references/output-formats.md) 的结构。
+1. 确认截止日期、窗口、类别、数量和输出格式。
+2. 按 [methodology.md](references/methodology.md) 的七轮矩阵扫描直接涨价、价格前动作、未来供给收缩、需求加速、库存交期、贸易政策和反证。
+3. 统一材料别名、规格、地区和计价口径；纯股票异动不能建立候选。
+4. 优先核验公告、统计、交易所、协会、海关、权威价格机构、企业一手材料和实名产业链信息；当前信息必须检索，不依赖记忆。
+5. 为证据设置唯一 `evidence_id`、去重用 `event_id`、独立性用 `independence_group`，并按 [data-contract.md](references/data-contract.md) 设置 `supports` 与各维度 `evidence_refs`。
+6. 主动寻找价格回落、库存回升、复产扩产、进口增加、需求走弱、客户抵制和替代材料等反证。
+7. 运行 `scripts/score_radar.py`；不得手算后覆盖脚本分数、Gate、状态或排序。
+8. 按 [output-formats.md](references/output-formats.md) 先给总览，再给证据附录。
 
 ## 研究纪律
 
-- 区分调价意向、报价上涨与已成交涨价；三者不能互换。
-- 区分供给扰动、真实缺口与需求拉动；说明持续时间和可逆性。
-- 将 A 股异动仅作为末端确认，不得用股价上涨反推材料涨价成立。
-- 为每个关键事实记录日期、发布者、链接、证据等级、原始表述或数据点。
-- 只把窗口内且被评分字段明确引用的证据用于消息密度和来源质量；来源质量只接受 HTTP(S) 直达链接。
-- `evidence_refs` 引用的页面必须直接支持该维度事实；除非同一来源同时明确披露多类事实，不得为凑分跨维度复用。
-- 同一发布者或转载链只算一个独立来源。市场讨论只能作为 D 级线索。
-- 主动寻找价格回落、库存回升、产能恢复、需求不及预期等反证。
-- 缺失字段按 0 分并写入数据缺口；不得猜测或用行业常识补值。
-- 最终内容属于研究框架，不承诺收益；把公司受益逻辑与股票是否值得交易分开。
+- 区分调价意向、已实施价格前动作、正式调价函、公开报价和成交结算。
+- `preprice_action` 只表示封盘、惜售、取消折扣、缩短报价期、限量供应等已经发生的商务动作。
+- 区分静态库存低与持续去库，区分单点检修与结构性约束，说明持续时间和可逆性。
+- A 股异动只确认已有材料逻辑，不得用股价上涨反推材料涨价。
+- 消息密度和来源质量只使用实际支持非零价格或供给子项的基本面证据；A 股行情和纯反证不得抬高这两项。
+- 每个非零子项必须有窗口内唯一证据及相应 `supports` 标签；旧 v2 输入仅按 legacy coarse binding 兼容运行。
+- 同一转载链、发布者或原始事件不得重复加分；D 级讨论只能作为线索。
+- 缺失、错配或无支持字段按 0 分并记录缺口，不猜测补值。
+- `forward_catalyst` 必须是可验证的 scheduled 或 ongoing 变化；强反证只阻断 Supply Forward，不否认已成立的 Price Confirmed。
+- 研究结论不承诺收益；材料逻辑与股票是否值得交易分开。
 
-## 数据和工具选择
+## 五项评分与双路径
 
-- 优先调用环境中可用的金融搜索、公告、行情和 A 股数据能力；不可用时改用公开网页和官方来源。
-- 价格验证优先使用交易/结算、可复核价格序列、权威报价或多供应商一致证据。
-- A 股异动使用至少 3 只直接受益股组成等权篮子，与中证全指或等价宽基比较。少于 3 只时保留结果，但脚本会标记低覆盖并限制该项得分。
-- 搜索无结果或接口失败时继续使用其他来源，并明确记录失败和未覆盖项。
+总分仍为：消息密度 20 + 来源质量 25 + 价格验证 25 + 供给约束 20 + A 股异动 10。
+
+状态仍为：65–100 高确定性、50–64 发酵中、35–49 观察、0–34 证据不足。
+
+总分达到 65 后还必须通过一个 Gate：
+
+- `price_confirmed`：来源质量 ≥15、价格验证 ≥13，且阶段至少为正式调价函、公开报价或成交结算。
+- `supply_forward`：来源质量 ≥15、消息密度 ≥12、供给约束 ≥14、Catalyst 有效且没有 Blocking Counterevidence。
+
+两个路径同时满足时优先 `price_confirmed`；均不满足时固定降为“发酵中”。
 
 ## 评分命令
 
-规范化数据后运行：
-
 ```powershell
-python scripts/score_radar.py input.json --format markdown
 python scripts/score_radar.py input.json --format json --output scored.json
+python scripts/score_radar.py scored.json --from-scored --format markdown --output report.md
 ```
 
-输入可以带人工写明的 `data_gaps`，脚本还会自动补充可计算字段的缺口。结果按总分、价格验证、来源质量、消息密度、材料名称稳定排序。
+用户要求网页时，再运行：
 
-## 输出选择
+```powershell
+python scripts/render_radar.py scored.json --output report.html
+```
 
-- 用户未指定格式：直接返回 Markdown 总览和证据附录，不创建文件。
-- 用户要求 JSON：输出评分后的审计数据。
-- 用户要求网页：先生成评分 JSON，再运行 `scripts/render_radar.py scored.json --output report.html`；只生成本地文件。
-- 用户要求 PNG：先生成本地 HTML，再用可用的本地浏览器做全页截图。不要用生成式图片替代真实表格。
-- 用户要求完整研究报告：在标准附录后扩展产业链位置、受益路径、兑现节奏、反证和风险，不改变评分口径。
+`scored.json` 是 Markdown、HTML 和 PNG 的唯一数据源；输出阶段不得重新评分。
+
+PNG 必须由本地 HTML 做真实全页截图，不使用生成式图片伪造表格。
 
 ## 完成检查
 
-- 确认榜单不超过 30 条且监控窗口写清楚。
-- 确认总分等于五项分数之和，范围为 0–100。
-- 确认“高确定性”同时满足总分、来源质量和价格验证门槛。
-- 确认所有外部事实有近邻链接，所有受益股都有直接性标签与依据。
-- 确认每个非零价格、供给和 A 股分项都有有效 `evidence_refs`，且直接受益股覆盖数已按代码或名称去重。
-- 确认网页/图片保留与 Markdown 相同的数据、排序、门槛和缺口。
+- 榜单不超过 30 条，截止日期和窗口明确。
+- 总分严格等于五项之和，范围 0–100，方法版本为 `2.1.0`。
+- `gate_path`、价格阶段、Catalyst、反证、受益股和缺口均可追溯。
+- Price Confirmed 不能被 `intent` 或 `preprice_action` 绕过。
+- 价格和供给封顶只使用各自维度的有效来源。
+- Markdown、JSON、HTML、PNG 保持相同分数、排序、Gate、反证和缺口。
+- 未完成历史 As-of Replay 时，只声明规则增强了早期信号识别，不宣称已经证明预测未来涨价或投资收益有效。

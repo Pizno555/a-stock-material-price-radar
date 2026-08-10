@@ -11,19 +11,21 @@
     <header class="hero" aria-labelledby="report-title">
       <h1 id="report-title"></h1>
       <div class="hero-meta" id="hero-meta"></div>
-      <p class="hero-note">抓取监控窗口内多来源反复提到的供给紧张、成本上涨与提价预期，按消息密度、来源质量、价格验证、供给约束和 A 股异动评分。</p>
+      <p class="hero-note">扫描监控窗口内已经发生的价格变化、价格前动作与供需拐点，按消息密度、来源质量、价格验证、供给约束和 A 股异动评分。</p>
     </header>
 
     <section class="overview" aria-labelledby="overview-title">
-      <h2 id="overview-title"><span class="section-index">0</span> 发酵雷达总览（按评分排序）</h2>
+      <h2 id="overview-title"><span class="section-index">0</span> 涨价与供需雷达总览（按评分排序）</h2>
       <div class="table-card">
         <table>
           <thead>
             <tr>
               <th>材料链</th>
               <th>分类</th>
-              <th>发酵分</th>
+              <th>总分</th>
               <th>状态</th>
+              <th>确认路径</th>
+              <th>价格阶段</th>
               <th>核心催化</th>
             </tr>
           </thead>
@@ -36,6 +38,11 @@
       <h2 id="appendix-title"><span class="section-index">1</span> 证据附录</h2>
       <div id="detail-list"></div>
     </section>
+
+    <section class="excluded" id="excluded-section" aria-labelledby="excluded-title" hidden>
+      <h2 id="excluded-title"><span class="section-index">2</span> 已排除候选</h2>
+      <div class="detail-card"><ul id="excluded-list"></ul></div>
+    </section>
   </main>
 
   <script type="application/json" id="radar-data">{{DATA_JSON}}</script>
@@ -47,7 +54,7 @@
       document.getElementById('report-title').textContent = title;
 
       const meta = document.getElementById('hero-meta');
-      [data.as_of, '可视化网站版', `监控窗口：近${data.window_days}天`, `覆盖 ${data.candidate_count} 条材料链`]
+      [data.as_of, `Schema ${data.schema_version || '—'}`, `方法 ${data.method_version || '—'}`, `监控窗口：近${data.window_days}天`, `覆盖 ${data.candidate_count} 条材料链`]
         .forEach(value => {
           const pill = document.createElement('span');
           pill.className = 'meta-pill';
@@ -77,8 +84,10 @@
         const cells = [
           ['材料链', item.material_chain, 'material'],
           ['分类', item.category, 'category'],
-          ['发酵分', null, 'score'],
+          ['总分', null, 'score'],
           ['状态', null, 'status'],
+          ['确认路径', item.gate_path, 'path'],
+          ['价格阶段', item.score_details && item.score_details.price_validation && item.score_details.price_validation.evidence_type, 'stage'],
           ['核心催化', item.core_catalyst, 'catalyst']
         ];
         cells.forEach(([label, value, col]) => {
@@ -149,13 +158,26 @@
         });
         body.appendChild(scoreGrid);
 
+        const priceAudit = item.score_details && item.score_details.price_validation || {};
+        const supplyAudit = item.score_details && item.score_details.supply_constraint || {};
+        const marketAudit = item.score_details && item.score_details.a_share_movement || {};
+        const catalystAudit = item.score_details && item.score_details.forward_catalyst || {};
+        const catalyst = item.forward_catalyst && typeof item.forward_catalyst === 'object' ? item.forward_catalyst : {};
+        const gate = item.status_gate || {};
+        const gateReason = Array.isArray(gate.reasons) && gate.reasons.length
+          ? gate.reasons.join('；')
+          : (gate.passed ? '已通过' : '总分未触发高确定性 Gate');
         const facts = document.createElement('div');
         facts.className = 'fact-grid';
         [
+          ['确认路径', item.gate_path],
+          ['Gate 审计', `${gate.applied ? '已应用' : '未应用'} / ${gate.passed ? '通过' : '未通过'} — ${gateReason}`],
+          ['价格阶段', `${valueOrDash(priceAudit.evidence_type)} / ${valueOrDash(priceAudit.change_basis)}`],
           ['核心催化', item.core_catalyst],
-          ['价格验证', item.price && item.price.description],
-          ['供给约束', item.supply && item.supply.description],
-          ['A股验证', item.a_share && item.a_share.description]
+          ['价格子项', `阶段 ${valueOrDash(priceAudit.evidence_points)}；涨幅 ${valueOrDash(priceAudit.change_pct)}%/${valueOrDash(priceAudit.change_points)}分；覆盖 ${valueOrDash(priceAudit.breadth_count)}/${valueOrDash(priceAudit.breadth_points)}分；持续 ${valueOrDash(priceAudit.persistence_days)}天/${valueOrDash(priceAudit.persistence_points)}分 — ${valueOrDash(item.price && item.price.description)}`],
+          ['供给子项', `库存 ${valueOrDash(supplyAudit.inventory)}/${valueOrDash(supplyAudit.inventory_points)}分；开工/交期 ${valueOrDash(supplyAudit.utilization_leadtime)}/${valueOrDash(supplyAudit.utilization_leadtime_points)}分；扰动 ${valueOrDash(supplyAudit.disruption)}/${valueOrDash(supplyAudit.disruption_points)}分；需求/缺口 ${valueOrDash(supplyAudit.demand_gap)}/${valueOrDash(supplyAudit.demand_gap_points)}分 — ${valueOrDash(item.supply && item.supply.description)}`],
+          ['A股验证', `超额 ${valueOrDash(marketAudit.excess_return_pct)}%；广度 ${valueOrDash(marketAudit.positive_breadth_pct)}%；成交 ${valueOrDash(marketAudit.turnover_ratio)}倍；正超额 ${valueOrDash(marketAudit.positive_excess_days)}天；直接受益股 ${valueOrDash(marketAudit.direct_beneficiary_count)}只 — ${valueOrDash(item.a_share && item.a_share.description)}`],
+          ['Forward Catalyst', `${catalystAudit.valid ? '有效' : '无效/缺失'}；status=${valueOrDash(catalyst.status)}；type=${valueOrDash(catalyst.type)}；timing_basis=${valueOrDash(catalyst.timing_basis)}；start=${valueOrDash(catalyst.start_date)}；end=${valueOrDash(catalyst.end_date)}；observed_start=${valueOrDash(catalyst.observed_start)}；证据=${Array.isArray(catalyst.evidence_refs) && catalyst.evidence_refs.length ? catalyst.evidence_refs.join(', ') : '—'}；原因=${Array.isArray(catalystAudit.reasons) && catalystAudit.reasons.length ? catalystAudit.reasons.join('；') : '无'} — ${valueOrDash(catalyst.description)}`]
         ].forEach(([label, value]) => {
           const block = document.createElement('div');
           const heading = document.createElement('h3');
@@ -178,7 +200,8 @@
           tier.className = 'tier-badge';
           tier.textContent = valueOrDash(row.tier);
           const text = document.createElement('span');
-          text.textContent = `${valueOrDash(row.date)} · ${valueOrDash(row.publisher)} — ${valueOrDash(row.claim)}`;
+          const supports = Array.isArray(row.supports) && row.supports.length ? ` [${row.supports.join(', ')}]` : '';
+          text.textContent = `${valueOrDash(row.date)} · ${valueOrDash(row.publisher)} — ${valueOrDash(row.claim)}${supports}`;
           li.append(tier, text);
           const href = safeUrl(row.url);
           if (href) {
@@ -198,6 +221,29 @@
         }
         body.appendChild(evidenceList);
 
+        const beneficiaryTitle = document.createElement('h3');
+        beneficiaryTitle.textContent = 'A股受益公司';
+        body.appendChild(beneficiaryTitle);
+        const beneficiaryList = document.createElement('ul');
+        beneficiaryList.className = 'evidence-list';
+        const beneficiaries = item.a_share && Array.isArray(item.a_share.beneficiaries) ? item.a_share.beneficiaries : [];
+        beneficiaries.forEach(stock => {
+          const li = document.createElement('li');
+          const tag = document.createElement('span');
+          tag.className = 'tier-badge';
+          tag.textContent = stock.directness === 'direct' ? '直接' : '间接';
+          const text = document.createElement('span');
+          text.textContent = `${valueOrDash(stock.code)} · ${valueOrDash(stock.name)} — ${valueOrDash(stock.basis)}`;
+          li.append(tag, text);
+          beneficiaryList.appendChild(li);
+        });
+        if (!beneficiaryList.children.length) {
+          const li = document.createElement('li');
+          li.textContent = '未完成映射';
+          beneficiaryList.appendChild(li);
+        }
+        body.appendChild(beneficiaryList);
+
         const notes = document.createElement('div');
         notes.className = 'note-grid';
         [
@@ -211,16 +257,40 @@
           const list = document.createElement('ul');
           (Array.isArray(values) && values.length ? values : ['无']).forEach(value => {
             const li = document.createElement('li');
-            li.textContent = valueOrDash(value);
+            li.textContent = value && typeof value === 'object'
+              ? `[${valueOrDash(value.effect)}] ${valueOrDash(value.description)}（维度：${valueOrDash(value.dimension)}；证据：${Array.isArray(value.evidence_refs) && value.evidence_refs.length ? value.evidence_refs.join(', ') : '—'}${Array.isArray(value.downgrade_reasons) && value.downgrade_reasons.length ? `；降级原因：${value.downgrade_reasons.join('；')}` : ''}）`
+              : valueOrDash(value);
             list.appendChild(li);
           });
           block.append(heading, list);
           notes.appendChild(block);
         });
         body.appendChild(notes);
+
+        if (item.status_gate && item.status_gate.applied && !item.status_gate.passed) {
+          const gateBox = document.createElement('div');
+          gateBox.className = 'gate-warning';
+          const heading = document.createElement('h3');
+          heading.textContent = '门槛降级';
+          const paragraph = document.createElement('p');
+          paragraph.textContent = (item.status_gate.reasons || []).join('；') || '未通过高确定性门槛';
+          gateBox.append(heading, paragraph);
+          body.appendChild(gateBox);
+        }
         panel.appendChild(body);
         details.appendChild(panel);
       });
+
+      const excluded = Array.isArray(data.excluded_candidates) ? data.excluded_candidates : [];
+      if (excluded.length) {
+        document.getElementById('excluded-section').hidden = false;
+        const list = document.getElementById('excluded-list');
+        excluded.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = `${valueOrDash(item.material_chain)}：${valueOrDash(item.reason)}`;
+          list.appendChild(li);
+        });
+      }
     })();
   </script>
 </body>
