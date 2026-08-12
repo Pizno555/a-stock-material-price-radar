@@ -1,5 +1,5 @@
 ---
-name: material-price-radar
+name: a-stock-material-price-radar
 description: Discover, verify, score, and rank material price-hike and supply-demand inflection signals with a deterministic 100-point rubric and A-share confirmation. Use for 材料涨价雷达, 涨价链, 原材料价格异动, 封盘惜售, 取消折扣, 供给收缩, 库存去化, 交期延长, 订单加速, 检修停产, 调价函核验, 产业链涨价线索, A股受益材料筛选, or ranked Markdown, JSON, local HTML, or PNG research covering commodity, chemical, metal, semiconductor, PCB, battery, energy, or advanced materials.
 ---
 

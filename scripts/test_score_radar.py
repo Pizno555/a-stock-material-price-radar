@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression and adversarial tests for material-price-radar v2.1."""
+"""Regression and adversarial tests for a-stock-material-price-radar v2.1."""
 
 from __future__ import annotations
 

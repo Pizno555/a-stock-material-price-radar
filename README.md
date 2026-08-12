@@ -1,6 +1,6 @@
-# Material Price Radar
+# A-Stock Material Price Radar
 
-`material-price-radar` 是一个面向材料涨价线索的研究型 Codex Skill。它会发现候选、核验证据、去重信源，按 100 分规则排序，并映射可能受益的 A 股公司。
+`a-stock-material-price-radar` 是一个面向材料涨价线索的研究型 Codex Skill。它会发现候选、核验证据、去重信源，按 100 分规则排序，并映射可能受益的 A 股公司。
 
 它关注材料价格与实物供需，不会把单纯的股价上涨或概念炒作反推为材料基本面改善。
 
@@ -11,26 +11,26 @@
 在 Codex 中直接调用：
 
 ```text
-使用 $material-price-radar 扫描近10天材料涨价信号。
+使用 $a-stock-material-price-radar 扫描近10天材料涨价信号。
 ```
 
 临时指定参数：
 
 ```text
-使用 $material-price-radar，截至2026-08-01，观察近20个自然日，
+使用 $a-stock-material-price-radar，截至2026-08-01，观察近20个自然日，
 最多输出15条，只看半导体材料和PCB，生成Markdown总览与证据附录。
 ```
 
 研究指定材料：
 
 ```text
-使用 $material-price-radar 研究电子级氢氟酸近30天的价格、供给和A股受益链。
+使用 $a-stock-material-price-radar 研究电子级氢氟酸近30天的价格、供给和A股受益链。
 ```
 
 生成本地网页：
 
 ```text
-使用 $material-price-radar 扫描近10天材料涨价信号，并生成本地HTML报告。
+使用 $a-stock-material-price-radar 扫描近10天材料涨价信号，并生成本地HTML报告。
 ```
 
 ## 默认参数
@@ -128,7 +128,7 @@ python ..\.system\skill-creator\scripts\quick_validate.py .
 ## 目录说明
 
 ```text
-material-price-radar/
+a-stock-material-price-radar/
 ├── SKILL.md                 # Codex 执行说明与触发信息
 ├── agents/openai.yaml       # UI 名称和默认调用提示
 ├── scripts/                 # 评分、测试和 HTML 渲染脚本
